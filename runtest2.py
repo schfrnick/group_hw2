@@ -15,24 +15,56 @@ def build(testcase):
         compileResult = subprocess.run(testcase['build'])
         assert(compileResult.returncode == 0)
 
+# takes a text file and convert it into an array
+def toArray(file):
+    temp = []
+    
+    for line in file:
+        temp.append(line)
+        
+    return temp
+
 # Comparing expected result to actual result of running the command
 def check(expected, actual):
     if expected == None:
         return actual == None
     success = True
-    for line in expected:
-        text1 = line.split()
-        text2 = actual.readline().split()
-        for x in range(len(text1)):
-            if text1[x] != text2[x]:
-                success = False
-                break
-    if actual.readline(): # True if not at eof
+    
+    for line1 in expected:
+      if line1 != actual.readline():
+        success = False
+        break
+    
+    line = actual.readline()
+    if line: # True if not at eof
         print('actual still has: ' + line)
         success = False
     return success
 
-# function for checking requirement 2
+# checks actual file for expected output word by word
+def checkByWord(expected, actual):
+    if expected == None:
+        return actual == None
+    success = True
+
+    expected_array = []
+    actual_array = []
+
+    expected_array = toArray(expected)
+    actual_array = toArray(actual)
+
+    if len(expected_array) != len(actual_array):
+        success = False
+    else:
+        for i in range(len(expected_array)):
+            print(expected_array[i])
+            print(actual_array[i])
+            if expected_array[i] != actual_array[i]:
+                success = False
+                break
+    return success
+
+# checks actual file specifically for expected output
 def checkSpecific(expected, actual):
     if expected == None:
         return actual == None
@@ -41,40 +73,23 @@ def checkSpecific(expected, actual):
     expected_array = []
     actual_array = []
 
-    for line in expected:
-        expected_array.append(line)
-    for line in actual:
-        actual_array.append(line)
+    expected_array = toArray(expected)
+    actual_array = toArray(actual)
 
     temp = 0
     marker = 0
 
-    print(len(actual_array) - 1)
     for i in range(len(expected_array)):
-        print("RESTART")
-        print(range(marker, len(actual_array)))
         for j in range(marker, len(actual_array)):
-            print("j")
-            print(j)
-            print(expected_array[i])
-            print(actual_array[j])
-            print("-----------------------------------------------------")
             if j > len(actual_array) - 1:
                 success = False
             if expected_array[i] == actual_array[j]:
                 marker = j + 1
-                print(marker)
                 temp += 1
                 break;
-    print("temp")
-    print(temp)
-    print("exp")
-    print(len(expected_array))
     if temp != len(expected_array):
         success = False
-    print("TEST END")
     return success
-# end
 
 # Running the test cases
 def run(cmd):
@@ -90,11 +105,15 @@ def run(cmd):
         has_expected = 'expected' in case_keys
         has_err = 'expected_err' in case_keys
 
+        # checks .json file for requirement 1
+        if 'by word' in case_keys:
+            by_word = case['by word']
+        else:
+            by_word = False
         # checks .json file for requirement 2
         if 'specific' in case_keys:
             specific = case['specific']
         else: specific = False
-        # end
         
         if 'expected_return_code' in case_keys:
             expected_return_code = case['expected_return_code']
@@ -127,8 +146,10 @@ def run(cmd):
         if has_expected: actual = open(outname)
         if has_err: actual_err = open(errname)
 
-        # if case_pass isn't already false, and requirement 2 is asked by user
-        if specific and case_pass:
+        # if case_pass isn't already false, do the check asked by user, the default being checking line by line for equality to the actual file
+        if by_word and case_pass:
+            case_pass = checkByWord(expected, actual) and checkByWord(expected_err, actual_err)
+        elif specific and case_pass:
             case_pass = checkSpecific(expected, actual) and checkSpecific(expected_err, actual_err)
         else:
             case_pass = check(expected, actual) and check(expected_err, actual_err)
